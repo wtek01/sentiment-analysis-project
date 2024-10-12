@@ -1,0 +1,47 @@
+version: '3'
+services:
+  backend:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.backend
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      - POSTGRES_DB=sentiment_db
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=password
+      - DB_HOST=db
+      - DB_PORT=5432
+    env_file:
+      - ../.env
+    command: sh -c "sleep 10 && uvicorn backend.api.main:app --host 0.0.0.0 --port 8000"
+
+  frontend:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+
+  db:
+    image: postgres:13
+    environment:
+      - POSTGRES_DB=sentiment_db
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=password
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - C:/dev/ai-integration-services/sentiment-analysis-project/docker/init_script.sql:/docker-entrypoint-initdb.d/init_script.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d sentiment_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pgdata:
